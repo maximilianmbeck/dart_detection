@@ -6,10 +6,16 @@ import numpy as np
 # Set minimum and maximum HSV values to display
 # lower = np.array([hMin, sMin, vMin])
 # upper = np.array([hMax, sMax, vMax])
+# for initial image
 lower_g = np.array([60, 100, 40])
 upper_g = np.array([80, 255, 100])
 lower_r = np.array([150, 130, 30])
 upper_r = np.array([179, 255, 90])
+# tuned with testthrows
+lower_g = np.array([40, 100, 10])
+upper_g = np.array([80, 255, 255])
+lower_r = np.array([40, 100, 10])
+upper_r = np.array([80, 255, 255])
 
 green_bound_tuple = (lower_g, upper_g)
 red_bound_tuple = (lower_r, upper_r)
@@ -20,7 +26,8 @@ def main():
 
 def detect_dart(color_bounds):
     # read image
-    image = cv.imread('test1.jpg')
+    filename = 'input_multicolor'
+    image = cv.imread(filename+'.jpg')
     plt.figure()
     plt.imshow(cv.cvtColor(image, cv.COLOR_BGR2RGB))
     plt.show()
@@ -48,8 +55,11 @@ def detect_dart(color_bounds):
 
     # define ground truth marker points
     zoom_ = 4
+    # dest_corners = zoom_*np.array([[0, 0], [500, 0], [1000, 0],
+    #                               [0, 350], [1000, 350], [0, 700], [500, 700], [1000, 700]])
+    ##! without aruco marker 7 (on picture)
     dest_corners = zoom_*np.array([[0, 0], [500, 0], [1000, 0],
-                                  [0, 350], [1000, 350], [0, 700], [500, 700], [1000, 700]])
+                                  [1000, 350], [0, 700], [500, 700], [1000, 700]])
     dest_width = zoom_*1000
     dest_height = zoom_*700
 
@@ -57,6 +67,7 @@ def detect_dart(color_bounds):
     h, mask = cv.findHomography(clw_sorted_corners, dest_corners, cv.RANSAC)
     # 'rectify' image
     warp_img = cv.warpPerspective(image, h, (dest_width, dest_height))
+    cv.imwrite(filename+'_warped.jpg', warp_img)
     plt.figure()
     plt.imshow(cv.cvtColor(warp_img, cv.COLOR_BGR2RGB))
     plt.show()
@@ -69,6 +80,7 @@ def detect_dart(color_bounds):
     result = cv.bitwise_and(warp_img, warp_img, mask=mask)
     result_gray = cv.cvtColor(result, cv.COLOR_BGR2GRAY)
     _, dst = cv.threshold(result_gray, 10, 255, 0)
+    cv.imwrite(filename+'_thresh.jpg', dst)
     plt.imshow(dst)
     plt.show()
     
