@@ -26,7 +26,7 @@ def main():
 
 def detect_dart(color_bounds):
     # read image
-    filename = 'input_multicolor'
+    filename = 'only_board'
     image = cv.imread(filename+'.jpg')
     plt.figure()
     plt.imshow(cv.cvtColor(image, cv.COLOR_BGR2RGB))
@@ -45,6 +45,9 @@ def detect_dart(color_bounds):
     plt.imshow(frame_markers)
     for i in range(len(ids)):
         c = corners[i][0]
+        # plot upper left corner
+        # plt.plot([c[0, 0]], [c[0, 1]],
+        #      "o", label="id={0}".format(ids[i]))
         plt.plot([c[:, 0].mean()], [c[:, 1].mean()],
                  "o", label="id={0}".format(ids[i]))
     plt.legend()
@@ -55,11 +58,11 @@ def detect_dart(color_bounds):
 
     # define ground truth marker points
     zoom_ = 4
-    # dest_corners = zoom_*np.array([[0, 0], [500, 0], [1000, 0],
-    #                               [0, 350], [1000, 350], [0, 700], [500, 700], [1000, 700]])
-    ##! without aruco marker 7 (on picture)
     dest_corners = zoom_*np.array([[0, 0], [500, 0], [1000, 0],
-                                  [1000, 350], [0, 700], [500, 700], [1000, 700]])
+                                  [0, 350], [1000, 350], [0, 700], [500, 700], [1000, 700]])
+    ##! without aruco marker 7 (on picture)
+    # dest_corners = zoom_*np.array([[0, 0], [500, 0], [1000, 0],
+    #                               [1000, 350], [0, 700], [500, 700], [1000, 700]])
     dest_width = zoom_*1000
     dest_height = zoom_*700
 
@@ -103,10 +106,18 @@ def get_mean_corners(corners):
         corner_means.append(cm)
     return np.array(corner_means).squeeze()
 
+def get_upper_left_corner(corners):
+    corner_ul = []
+    for i in range(len(corners)):
+        c = corners[i][0]
+        cm = [c[0, 0]], [c[0, 1]]
+        corner_ul.append(cm)
+    return np.array(corner_ul).squeeze()
 
-def get_sorted_corner_means(ids, corners):
+
+def get_sorted_corner_means(ids, corners, get_point=get_mean_corners):
     get_mean_corners(corners), ids
-    concatar = np.hstack((ids, get_mean_corners(corners)))
+    concatar = np.hstack((ids, get_point(corners)))
     sortedarr = concatar[concatar[:, 0].argsort()]
     return sortedarr[:, 1:3]
 
