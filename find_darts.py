@@ -1,6 +1,7 @@
 import cv2 as cv
 from cv2 import aruco
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import numpy as np
 
 # Set minimum and maximum HSV values to display
@@ -21,12 +22,11 @@ green_bound_tuple = (lower_g, upper_g)
 red_bound_tuple = (lower_r, upper_r)
 
 def main():
-    pos = detect_dart(green_bound_tuple)
-    print(pos)
+    detect_dart(green_bound_tuple)
 
 def detect_dart(color_bounds):
     # read image
-    filename = 'only_board'
+    filename = 'test2'
     image = cv.imread(filename+'.jpg')
     plt.figure()
     plt.imshow(cv.cvtColor(image, cv.COLOR_BGR2RGB))
@@ -87,14 +87,61 @@ def detect_dart(color_bounds):
     plt.imshow(dst)
     plt.show()
     
-    # find dart position
-    dart_positions = np.argwhere(mask>200)
-    dart_pos_pixel = np.array([dart_positions[:,0].mean(), dart_positions[:,1].mean()])
+    # # find dart position
+    # dart_positions = np.argwhere(mask>200)
+    # dart_pos_pixel = np.array([dart_positions[:,0].mean(), dart_positions[:,1].mean()])
     
-    # backtransform to mm range divide by zoom_
-    dart_pos_mm = dart_pos_pixel/zoom_
+    # # backtransform to mm range divide by zoom_
+    # dart_pos_mm = dart_pos_pixel/zoom_
 
-    return dart_pos_mm
+    # return dart_pos_mm
+    image = dst
+
+    # fig, ax = plt.subplots()
+    # ax.imshow(image)
+
+    # morphologic operations
+    kernel_size = 5
+    kernel = np.ones(shape=(kernel_size,kernel_size), dtype=np.uint8)
+    # open
+    opening = cv.morphologyEx(image, cv.MORPH_OPEN, kernel)
+    # fig, ax = plt.subplots()
+    # ax.imshow(opening)
+    # close
+    closing = cv.morphologyEx(opening, cv.MORPH_CLOSE, kernel)
+    # fig, ax = plt.subplots()
+    # ax.imshow(closing)
+
+
+    # blob detection (BLOB = Binary Large Object)
+    params = cv.SimpleBlobDetector_Params()
+    # Change thresholds -> we actually already have a binary image -> thresholded by colors
+    params.minThreshold = 200
+    params.maxThreshold = 220
+    # Filter by Area -> take only blobs with area greater than 100 pixels
+    params.filterByArea = True
+    params.minArea = 100
+
+    params.filterByColor = False
+    params.filterByCircularity = False
+    params.filterByConvexity = False
+    params.filterByInertia = False
+
+    detector = cv.SimpleBlobDetector_create(params)
+    keypoints = detector.detect(closing)
+
+    fig, ax = plt.subplots()
+    out = cv.drawKeypoints(image, keypoints, np.array([]), (0, 0, 255),  cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    # ax.imshow(out)
+    ax.imshow(cv.cvtColor(warp_img, cv.COLOR_BGR2RGB))
+
+    circles = []
+    for kp in keypoints:
+        print(kp.pt, '+-', kp.size/2, ' pixels')
+        ax.plot(kp.pt[0], kp.pt[1], marker='x', markersize=5, color='g')
+        ax.add_patch(mpatches.Circle((kp.pt[0], kp.pt[1]), kp.size/2, color='y', fill=False))
+    
+    plt.show()
 
 
 
