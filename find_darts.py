@@ -26,7 +26,7 @@ def main():
 
 def detect_dart(color_bounds):
     # read image
-    filename = 'sunday2'
+    filename = 'sunday'
     image = cv.imread(filename+'.jpg')
     plt.figure()
     plt.imshow(cv.cvtColor(image, cv.COLOR_BGR2RGB))
@@ -141,9 +141,32 @@ def detect_dart(color_bounds):
         ax.plot(kp.pt[0], kp.pt[1], marker='x', markersize=5, color='g')
         ax.add_patch(mpatches.Circle((kp.pt[0], kp.pt[1]), kp.size/2, color='y', fill=False))
     
+            # extract position from keypoints in pixel values
+    positions_m = extract_pos_from_keypoints(keypoints, zoom_)
+    print(positions_m)
     plt.show()
 
+def extract_pos_from_keypoints(keypoints, zoom, origin=np.array([500, 350])) -> np.ndarray:
+    """
+    Returns a list of tuples, containing (position in m, radius of detected tip in m).
+    origin in mm
+    """
+    positions_m = []
+    for kp in keypoints:
+        # position in mm with origin upper-left corner aruco marker, positive y going down
+        # format [x,y,radius]
+        pos_radius_mm = np.array(
+            [kp.pt[0]/zoom, kp.pt[1]/zoom, (kp.size/2)/zoom])
+        print(pos_radius_mm)
+        # transform to true origin
+        pos_origin_mm = pos_radius_mm[0:2] - origin
+        pos_origin_mm[1] *= -1
+        # in m
+        pos_origin_m = pos_origin_mm/1e3
+        radius_m = pos_radius_mm[2]/1e3
 
+        positions_m.append(np.hstack((pos_origin_m, radius_m)))
+    return np.array(positions_m)
 
 def get_mean_corners(corners):
     corner_means = []
