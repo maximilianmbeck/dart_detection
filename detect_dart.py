@@ -29,9 +29,10 @@ upper_r = np.array([80, 255, 255])
 green_bound_tuple = (lower_g, upper_g)
 red_bound_tuple = (lower_r, upper_r)
 
-## assert image filenames have following layout:
+# assert image filenames have following layout:
 # filename=f"magictest-{datetime.datetime.now():%Y%m%d-%H%M%S}-{series_id}-{throw_id}-image.JPG"
-split_token='-'
+# magictest-20210904-163555-1-0-camera-00007.JPG
+split_token = '-'
 series_id_idx = 3
 throw_id_idx = 4
 
@@ -39,14 +40,15 @@ throw_id_idx = 4
 This file contains the code to detect darts from the taken images.
 """
 
+
 def main(path: str):
     errlog = ""
     jpg_image_filenames = get_image_filenames_in_directory(path)
 
     img_fnames_by_ids = get_series_by_ids(jpg_image_filenames)
     for series_id in sorted(img_fnames_by_ids.keys()):
-        detection_pool = [] # keeps only new positions
-        sorted_results = [] # logs all detections
+        detection_pool = []  # keeps only new positions
+        sorted_results = []  # logs all detections
         series_lost = False
         for throw_id in sorted(img_fnames_by_ids[series_id].keys()):
 
@@ -58,9 +60,10 @@ def main(path: str):
             image_file = path+'/'+image_name
             detections_in_img, _ = detect_darts(green_bound_tuple, image_file)
             sorted_results.append(detections_in_img)
-            
-            if throw_id > 0: #< index 0 is empty board
-                new_detections = get_new_detections(detection_pool, detections_in_img)
+
+            if throw_id > 0:  # < index 0 is empty board
+                new_detections = get_new_detections(
+                    detection_pool, detections_in_img)
                 # check for errors
                 if len(new_detections) == 1:
                     # no error
@@ -69,41 +72,60 @@ def main(path: str):
                     # no new dart -> dart not detected -> probably hidden by other dart
                     # -> only this detection is lost
                     detection_pool.append(np.array([]))
-                    errlog += 'SHOW LOST: No new dart detected in series_id: {0}, throw_id: {1} \n'.format(series_id, throw_id)
+                    errlog += 'SHOW LOST: No new dart detected in series_id: {0}, throw_id: {1} \n'.format(
+                        series_id, throw_id)
 
                 elif len(new_detections) > 1:
                     # lost one image -> throw the following darts away
                     series_lost = True
                     detection_pool.append(np.array([]))
-                    errlog += 'SERIES LOST: More than one new dart detected in series_id: {0}, throw_id: {1} \n'.format(series_id, throw_id)
+                    errlog += 'SERIES LOST: More than one new dart detected in series_id: {0}, throw_id: {1} \n'.format(
+                        series_id, throw_id)
 
         save_detections(path, series_id, detection_pool, img_fnames_by_ids)
-        
-        # print(len(sorted_results))
+
         for s in detection_pool:
             print(s)
+    print("===================")
+    print("ERRORLOG:")
+    if errlog == "":
+        print("no errors!")
+    else:
+        print(errlog)
+    print("===================")
 
 
-
-def save_detections(path: str, series_id: int, detection_pool: list, img_fnames_by_ids: dict, img_filename_suffix='-image.JPG'):
-    
+def save_detections(path: str, series_id: int, detection_pool: list, img_fnames_by_ids: dict, img_filename_suffix_startswith='-camera-'):
+    """Saves all detections in separate yaml files."""
     for throw_id in range(len(detection_pool)):
         p = Path(path)/Path(img_fnames_by_ids[series_id][throw_id])
         img_filename_wo_ext = p.name
-        pure_filename = img_filename_wo_ext.removesuffix(img_filename_suffix)
+        # remove all tokens after and including img_filename_suffix_startswith
+        pure_filename = img_filename_wo_ext[0:img_filename_wo_ext.index(
+            img_filename_suffix_startswith)]
 
         yml_filename = pure_filename+'-position.yaml'
 
         detection = detection_pool[throw_id]
+        if detection.size == 0:
+            detection_valid = False
+            detection = np.array([float('nan'), float('nan'), float('nan')])
+        else:
+            detection_valid = True
 
-        detection_dict = dict(x=float(detection[0]), y=float(detection[1]))
+        detection_dict = dict(x=float(detection[0]), y=float(detection[1]), radius=float(
+            detection[2]), detection_valid=int(detection_valid), series_id=series_id, throw_id=throw_id)
 
         with open(path+'/'+yml_filename, 'w') as outfile:
             yaml.dump(detection_dict, outfile, default_flow_style=False)
 
-    
-    
-### detection postprocessing
+
+def save_detections_img(path: str, series_id: int, img_filename_suffix='-image.JPG'):
+    pass
+
+# detection postprocessing
+
+
 def get_new_detections(detection_pool: list, incoming_detections: np.ndarray):
     """
     Arrays of shape nx3 (rows: different detections, columns: x,y, radius)
@@ -112,8 +134,9 @@ def get_new_detections(detection_pool: list, incoming_detections: np.ndarray):
     for d in incoming_detections:
         if is_detection_new(detection_pool, d):
             new_detections.append(d)
-    
+
     return new_detections
+
 
 def is_detection_new(detection_pool: np.ndarray, query_pos: np.ndarray) -> bool:
     for p in detection_pool:
@@ -121,20 +144,28 @@ def is_detection_new(detection_pool: np.ndarray, query_pos: np.ndarray) -> bool:
             return False
     return True
 
+
 def is_same_pos(pos: np.ndarray, query_pos: np.ndarray) -> bool:
     dist_vec = pos[0:2] - query_pos[0:2]
     dist = np.linalg.norm(dist_vec)
     return dist < pos[2]
 
-### directory operations
-def get_image_filenames_in_directory(path: str):
+# directory operations
+
+
+def get_image_filenames_in_directory(path: str, name_contains='-camera-'):
+    """Returns a list of all image files in the directory."""
     p = Path(path)
     jpg_images = [x.name for x in p.iterdir() if x.suffix ==
                   '.JPG' or x.suffix == '.jpg']
-    jpg_images.sort()
-    return jpg_images
+    if name_contains is not None:
+        filenames = [x for x in jpg_images if name_contains in x]
+    else:
+        filenames = jpg_images
+    return filenames
 
-def get_series_by_ids(image_filenames: list, split_token='-', series_id_idx=3, throw_id_idx=4)->dict:
+
+def get_series_by_ids(image_filenames: list, split_token='-', series_id_idx=3, throw_id_idx=4) -> dict:
     """
     Returns a dict (series_ids as keys), which contains another dict (throw_ids as keys).
     """
@@ -147,15 +178,17 @@ def get_series_by_ids(image_filenames: list, split_token='-', series_id_idx=3, t
         if series_id not in series_by_ids:
             series_by_ids[series_id] = {}
         series_by_ids[series_id][throw_id] = img_fn
-    
+
     return series_by_ids
 
-### computer vision pipeline
+# computer vision pipeline
+
+
 def detect_darts(color_bounds: tuple, filename: str):
+    print(filename)
 
     # read image
     image = cv.imread(filename)
-    print(filename)
 
     # find markers
     gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
@@ -232,15 +265,26 @@ def detect_darts(color_bounds: tuple, filename: str):
     return positions_mm, keypoints
 
 
-def extract_pos_from_keypoints(keypoints, zoom):
+def extract_pos_from_keypoints(keypoints, zoom, origin=np.array([500, 350])):
     """
-    Returns a list of tuples, containing (position in mm, radius of detected tip in mm).
+    Returns a list of tuples, containing (position in m, radius of detected tip in m).
+    origin in mm
     """
-    positions_mm = []
+    positions_m = []
     for kp in keypoints:
-        positions_mm.append(
-            np.array([kp.pt[0]/zoom, kp.pt[1]/zoom, (kp.size/2)/zoom]))
-    return np.array(positions_mm)
+        # position in mm with origin upper-left corner aruco marker, positive y going down
+        # format [x,y,radius]
+        pos_radius_mm = np.array(
+            [kp.pt[1]/zoom, kp.pt[0]/zoom, (kp.size/2)/zoom])
+        # transform to true origin
+        pos_origin_mm = pos_radius_mm[0:2] - origin
+        # in m
+        pos_origin_m = pos_radius_mm/1e3
+        radius_m = pos_radius_mm[2]/1e3
+
+        positions_m.append(np.hstack(pos_origin_m, radius_m))
+    return np.array(positions_m)
+
 
 def get_mean_corners(corners):
     corner_means = []
@@ -250,6 +294,7 @@ def get_mean_corners(corners):
         corner_means.append(cm)
     return np.array(corner_means).squeeze()
 
+
 def get_upper_left_corner(corners):
     corner_ul = []
     for i in range(len(corners)):
@@ -257,6 +302,7 @@ def get_upper_left_corner(corners):
         cm = [c[0, 0]], [c[0, 1]]
         corner_ul.append(cm)
     return np.array(corner_ul).squeeze()
+
 
 def get_sorted_corner_means(ids, corners, get_point=get_mean_corners):
     get_mean_corners(corners), ids
@@ -268,8 +314,11 @@ def get_sorted_corner_means(ids, corners, get_point=get_mean_corners):
 if __name__ == '__main__':
     args = parser.parse_args()
     if args.path:
-        path = Path().resolve()/Path(args.path)
+        # path = Path().resolve()/Path(args.path) #< Path().resolve() returns a Path to the current working directory
+        path = Path(args.path)
     else:
         path = Path(__file__).resolve()
 
-    main(path.name)
+    # main(path.name)
+    print(len(get_image_filenames_in_directory(path)))
+    print(get_image_filenames_in_directory(path))

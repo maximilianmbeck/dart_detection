@@ -26,7 +26,7 @@ def main():
 
 def detect_dart(color_bounds):
     # read image
-    filename = 'test2'
+    filename = 'sunday2'
     image = cv.imread(filename+'.jpg')
     plt.figure()
     plt.imshow(cv.cvtColor(image, cv.COLOR_BGR2RGB))
