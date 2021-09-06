@@ -82,7 +82,6 @@ class DartDetector(object):
                         sorted_results.append(np.array([]))
                         continue
 
-
                     new_detections = get_new_detections(
                         detection_pool, detections_in_img)
                     # check for errors
@@ -95,6 +94,8 @@ class DartDetector(object):
                         detection_pool.append(np.array([]))
                         errlog += 'SHOT LOST: No new dart detected in series_id: {0}, throw_id: {1} \n'.format(
                             series_id, throw_id)
+                        print('SHOT LOST: No new dart detected in series_id: {0}, throw_id: {1}'.format(
+                            series_id, throw_id))
 
                     elif len(new_detections) > 1:
                         # lost one image -> throw the following darts away
@@ -102,6 +103,8 @@ class DartDetector(object):
                         detection_pool.append(np.array([]))
                         errlog += 'SERIES LOST: More than one new dart detected in series_id: {0}, throw_id: {1} \n'.format(
                             series_id, throw_id)
+                        print('SERIES LOST: More than one new dart detected in series_id: {0}, throw_id: {1}'.format(
+                            series_id, throw_id))
 
             self.save_detections(path, series_id, detection_pool)
 
@@ -264,7 +267,7 @@ def get_new_detections(detection_pool: list, incoming_detections: np.ndarray):
     return new_detections
 
 
-def is_detection_new(detection_pool: np.ndarray, query_pos: np.ndarray) -> bool:
+def is_detection_new(detection_pool: list, query_pos: np.ndarray) -> bool:
     for p in detection_pool:
         if is_same_pos(p, query_pos):
             return False
@@ -272,9 +275,12 @@ def is_detection_new(detection_pool: np.ndarray, query_pos: np.ndarray) -> bool:
 
 
 def is_same_pos(pos: np.ndarray, query_pos: np.ndarray) -> bool:
-    dist_vec = pos[0:2] - query_pos[0:2]
-    dist = np.linalg.norm(dist_vec)
-    return dist < pos[2]
+    if pos.size != query_pos.size:
+        return False
+    else:
+        dist_vec = pos[0:2] - query_pos[0:2]
+        dist = np.linalg.norm(dist_vec)
+        return dist < pos[2]
 
 # directory operations
 
