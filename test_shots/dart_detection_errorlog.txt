@@ -1,0 +1,5 @@
+===================
+ERRORLOG:
+SHOT LOST: Aruco marker not detected in series_id: 0, throw_id: 4 
+SERIES LOST: More than one new dart detected in series_id: 0, throw_id: 5 
+===================

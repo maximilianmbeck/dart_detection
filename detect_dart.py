@@ -13,6 +13,7 @@ parser.add_argument(
 
 
 # Set minimum and maximum HSV values to display
+#! > use hsv_trackbar_template to find values
 # lower = np.array([hMin, sMin, vMin])
 # upper = np.array([hMax, sMax, vMax])
 # for initial image
@@ -30,7 +31,7 @@ green_bound_tuple = (lower_g, upper_g)
 red_bound_tuple = (lower_r, upper_r)
 
 # assert image filenames have following layout:
-# filename=f"magictest-{datetime.datetime.now():%Y%m%d-%H%M%S}-{series_id}-{throw_id}-image.JPG"
+# filename=f"magictest-{datetime.datetime.now():%Y%m%d-%H%M%S}-{series_id}-{throw_id}-camera-{anynumber}.JPG"
 # magictest-20210904-163555-1-0-camera-00007.JPG
 split_token = '-'
 series_id_idx = 3
@@ -40,7 +41,9 @@ throw_id_idx = 4
 This file contains the code to detect darts from the taken images.
 
 USAGE:
-python3 detect_dart.py --path /home/max/phd/radar/dart_detection/test_shots_0904
+python3 detect_dart.py --path /path/to/folder
+e.g.    python3 detect_dart.py --path /home/max/phd/radar/dart_detection/test_shots
+if --path is not specified the path of this file will be used
 """
 
 
@@ -71,14 +74,15 @@ class DartDetector(object):
                     green_bound_tuple, image_file)
                 sorted_results.append(detections_in_img)
 
-                if detections_in_img.size == 0:
-                    # error aruco marker not detected
-                    errlog += 'SHOT LOST: Aruco marker not detected in series_id: {0}, throw_id: {1} \n'.format(
-                            series_id, throw_id)
-                    sorted_results.append(np.array([]))
-                    continue
-
                 if throw_id > 0:  # < index 0 is empty board
+                    if detections_in_img.size == 0:
+                        # error aruco marker not detected
+                        errlog += 'SHOT LOST: Aruco marker not detected in series_id: {0}, throw_id: {1} \n'.format(
+                                series_id, throw_id)
+                        sorted_results.append(np.array([]))
+                        continue
+
+
                     new_detections = get_new_detections(
                         detection_pool, detections_in_img)
                     # check for errors
