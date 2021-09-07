@@ -208,7 +208,11 @@ class DartDetector(object):
     def save_detections(self, path: str, series_id: int, detection_pool: list):
         """Saves all detections in separate yaml files."""
         for throw_id in range(len(detection_pool)):
-            p = Path(path)/Path(self.img_fnames_by_ids[series_id][throw_id+1])
+            try:
+                p = Path(path)/Path(self.img_fnames_by_ids[series_id][throw_id+1])
+            except KeyError:
+                print('FILE ERROR: Input file for series id: {0}, throw id {1} is missing!'.format(series_id, throw_id+1))
+                continue
             img_filename_wo_ext = p.name
             # remove all tokens after and including img_filename_suffix_startswith
             pure_filename = img_filename_wo_ext[0:img_filename_wo_ext.index(
